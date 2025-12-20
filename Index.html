@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Break System with Timer</title>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: #f2f4f8;
+      margin: 0;
+      padding: 40px;
+      color: #222;
+    }
+    h1 { text-align: center; color: #003366; margin-bottom: 20px; }
+    table {
+      width: 100%;
+      max-width: 1000px;
+      margin: auto;
+      border-collapse: collapse;
+      background: white;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    th, td { padding: 12px; text-align: center; border-bottom: 1px solid #e0e0e0; }
+    th { background-color: #004a99; color: white; font-weight: 500; }
+    td button { background-color: #007bff; border: none; color: white; padding: 8px 14px; border-radius: 6px; cursor: pointer; transition: 0.2s; }
+    td button:hover { background-color: #0056b3; }
+    .secondary { background-color: #e0e0e0; color: #333; }
+    .secondary:hover { background-color: #c8c8c8; }
+    #total { font-weight: bold; color: #003366; background-color: #eaf3ff; }
+    .actions { text-align: center; margin-top: 20px; }
+    .actions button {
+      font-size: 16px; margin: 0 8px; padding: 10px 20px;
+      border-radius: 8px; cursor: pointer; border: none; transition: 0.3s;
+    }
+    #addBtn { background-color: #17a2b8; color: white; }
+    #runBtn { background-color: #007bff; color: white; }
+    #exportBtn { background-color: #28a745; color: white; }
+    #clearBtn { background-color: #002855; color: white; }
+    #langBtn { background-color: #ff9800; color: white; }
+    #addBtn:hover { background-color: #117a8b; }
+    #runBtn:hover { background-color: #0056b3; }
+    #exportBtn:hover { background-color: #1e7e34; }
+    #clearBtn:hover { background-color: #001f3f; }
+    #langBtn:hover { background-color: #e67e22; }
+    .timer { font-weight: bold; color: #007bff; }
+    input[type="text"] { width: 60px; text-align: center; border-radius: 5px; border: 1px solid #ccc; padding: 4px; }
+  </style>
+</head>
+<body>
+
+  <h1 id="title">🕒 Break System with Timer</h1>
+
+  <table id="breakTable">
+    <thead>
+      <tr>
+        <th id="thBreak">Break</th>
+        <th id="thStart">Start</th>
+        <th id="thEnd">End</th>
+        <th id="thDuration">Duration</th>
+        <th id="thTimer">Live Timer</th>
+        <th id="thCountdown">Countdown</th>
+        <th id="thActions">Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+    <tfoot>
+      <tr id="totalRow">
+        <td colspan="3" id="totalLabel"><strong>Total Breaks Today</strong></td>
+        <td id="total">00:00:00</td>
+        <td colspan="3"></td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <div class="actions">
+    <button id="addBtn">➕ Add New Break</button>
+    <button id="runBtn">Calculate Total</button>
+    <button id="exportBtn">📤 Export to CSV</button>
+    <button id="clearBtn">Clear All</button>
+    <button id="langBtn">عربي / Arabic</button>
+  </div>
+
+  <script>
+    const translations = {
+      en: {
+        title: "🕒 Break System with Timer",
+        thBreak: "Break",
+        thStart: "Start",
+        thEnd: "End",
+        thDuration: "Duration",
+        thTimer: "Live Timer",
+        thCountdown: "Countdown",
+        thActions: "Actions",
+        totalLabel: "Total Breaks Today",
+        addBtn: "➕ Add New Break",
+        runBtn: "Calculate Total",
+        exportBtn: "📤 Export to CSV",
+        clearBtn: "Clear All",
+        countdownPlaceholder: "MM:SS",
+        startBtn: "Start",
+        endBtn: "End",
+        countdownStart: "⏱️ Start",
+        countdownReset: "🔄 Reset",
+        alertEnd: "Break ended!"
+      },
+      ar: {
+        title: "🕒 نظام البريك مع مؤقت",
+        thBreak: "البريك",
+        thStart: "البدء",
+        thEnd: "الانتهاء",
+        thDuration: "المدة",
+        thTimer: "العداد المباشر",
+        thCountdown: "مؤقت تنازلي",
+        thActions: "الإجراءات",
+        totalLabel: "إجمالي البريكات اليوم",
+        addBtn: "➕ إضافة بريك جديد",
+        runBtn: "حساب الإجمالي",
+        exportBtn: "📤 تصدير إلى CSV",
+        clearBtn: "مسح الكل",
+        countdownPlaceholder: "MM:SS",
+        startBtn: "بدء",
+        endBtn: "انتهاء",
+        countdownStart: "⏱️ بدء",
+        countdownReset: "🔄 إعادة",
+        alertEnd: "انتهى وقت البريك!"
+      }
+    };
+
+    let currentLang = 'en';
+    const tbody = document.querySelector('#breakTable tbody');
+    const totalCell = document.getElementById('total');
+    let data = JSON.parse(localStorage.getItem('breakData')) || {};
+    let timerIntervals = {};
+    let countdownIntervals = {};
+
+    // Translate the page content
+    function translatePage() {
+      const t = translations[currentLang];
+      document.getElementById('title').textContent = t.title;
+      document.getElementById('thBreak').textContent = t.thBreak;
+      document.getElementById('thStart').textContent = t.thStart;
+      document.getElementById('thEnd').textContent = t.thEnd;
+      document.getElementById('thDuration').textContent = t.thDuration;
+      document.getElementById('thTimer').textContent = t.thTimer;
+      document.getElementById('thCountdown').textContent = t.thCountdown;
+      document.getElementById('thActions').textContent = t.thActions;
+      document.getElementById('totalLabel').textContent = t.totalLabel;
+      document.getElementById('addBtn').textContent = t.addBtn;
+      document.getElementById('runBtn').textContent = t.runBtn;
+      document.getElementById('exportBtn').textContent = t.exportBtn;
+      document.getElementById('clearBtn').textContent = t.clearBtn;
+      renderTable();
+    }
+
+    // Format time in HH:MM:SS
+    function formatDuration(seconds) {
+      const h = String(Math.floor(seconds / 3600)).padStart(2,'0');
+      const m = String(Math.floor((seconds % 3600) / 60)).padStart(2,'0');
+      const s = String(seconds % 60).padStart(2,'0');
+      return `${h}:${m}:${s}`;
+    }
+
+    // Get the current time in HH:MM:SS format
+    function getTimeNow() {
+      const now = new Date();
+      return now.toLocaleTimeString('en-GB', { hour12: false });
+    }
+
+    // Convert time from HH:MM:SS to seconds
+    function parseTime(t) {
+      const [h, m, s] = t.split(':').map(Number);
+      return h * 3600 + m * 60 + s;
+    }
+
+    // Start a new break timer
+    function startBreak(key) {
+      const time = getTimeNow();
+      data[key] = data[key] || {};
+      data[key].start = time;
+      data[key].end = null;
+      data[key].duration = 0;
+      renderTable();
+      if (timerIntervals[key]) clearInterval(timerIntervals[key]);
+      let seconds = 0;
+      timerIntervals[key] = setInterval(() => {
+        seconds++;
+        data[key].timerText = formatDuration(seconds);
+        renderTable();
+        saveData();
+      }, 1000);
+      saveData();
+    }
+
+    // End a break timer
+    function endBreak(key) {
+      const time = getTimeNow();
+      const b = data[key];
+      if (!b || !b.start) return;
+      const startSec = parseTime(b.start);
+      const endSec = parseTime(time);
+      let diff = endSec - startSec;
+      if (diff < 0) diff += 24 * 3600;
+      b.end = time;
+      b.duration = diff;
+      b.durationText = formatDuration(diff);
+      clearInterval(timerIntervals[key]);
+      b.timerText = '00:00:00';
+      renderTable();
+      saveData();
+    }
+
+    // Save the data to localStorage
+    function saveData() {
+      localStorage.setItem('breakData', JSON.stringify(data));
+    }
+
+    // Start the countdown timer for a break
+    function startCountdown(key) {
+      const input = document.getElementById(`cdInput${key}`);
+      const timeStr = input.value.trim();
+      const parts = timeStr.split(':');
+      if (parts.length !== 2) { alert("Use MM:SS format"); return; }
+      let minutes = parseInt(parts[0]), seconds = parseInt(parts[1]);
+      if (isNaN(minutes) || isNaN(seconds)) { alert("Invalid format"); return; }
+
+      let totalSeconds = minutes * 60 + seconds;
+      const row = document.getElementById(`row${key}`);
+      if (countdownIntervals[key]) clearInterval(countdownIntervals[key]);
+
+      countdownIntervals[key] = setInterval(() => {
+        if (totalSeconds <= 0) {
+          clearInterval(countdownIntervals[key]);
+          alert(translations[currentLang].alertEnd);
+          input.value = '';
+          row.style.backgroundColor = '';
+          return;
+        }
+        // Row color based on remaining time
+        if (totalSeconds <= 10) row.style.backgroundColor = '#ffcccc';
+        else if (totalSeconds <= (minutes * 60) / 2) row.style.backgroundColor = '#fff3b3';
+        else row.style.backgroundColor = '#ccffcc';
+
+        totalSeconds--;
+        input.value = `${String(Math.floor(totalSeconds / 60)).padStart(2, '0')}:${String(totalSeconds % 60).padStart(2, '0')}`;
+      }, 1000);
+    }
+
+    // Reset the countdown timer for a break
+    function resetCountdown(key) {
+      if (countdownIntervals[key]) clearInterval(countdownIntervals[key]);
+      const input = document.getElementById(`cdInput${key}`);
+      input.value = '';
+      document.getElementById(`row${key}`).style.backgroundColor = '';
+    }
+
+    // Render the table with the breaks data
+    function renderTable() {
+      tbody.innerHTML = '';
+      const t = translations[currentLang];
+      Object.keys(data).filter(k => k.startsWith('Break')).forEach(key => {
+        const b = data[key];
+        const row = document.createElement('tr');
+        row.id = `row${key}`;
+        row.innerHTML = `
+          <td>${key}</td>
+          <td>${b.start || '--:--:--'}</td>
+          <td>${b.end || '--:--:--'}</td>
+          <td>${b.durationText || '00:00:00'}</td>
+          <td class="timer">${b.timerText || '00:00:00'}</td>
+          <td>
+            <input type="text" id="cdInput${key}" placeholder="${t.countdownPlaceholder}" value="">
+            <button onclick="startCountdown('${key}')">${t.countdownStart}</button>
+            <button class="secondary" onclick="resetCountdown('${key}')">${t.countdownReset}</button>
+          </td>
+          <td>
+            <button onclick="startBreak('${key}')">${t.startBtn}</button>
+            <button class="secondary" onclick="endBreak('${key}')">${t.endBtn}</button>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+
+      const total = Object.keys(data).filter(k => k.startsWith('Break')).reduce((sum, k) => sum + (data[k].duration || 0), 0);
+      totalCell.textContent = formatDuration(total);
+    }
+
+    // Add new break
+    document.getElementById('addBtn').addEventListener('click', () => {
+      const count = Object.keys(data).filter(k => k.startsWith('Break')).length + 1;
+      const key = `Break ${count}`;
+      data[key] = { start: null, end: null, duration: 0, durationText: '00:00:00', timerText: '00:00:00' };
+      saveData();
+      renderTable();
+    });
+
+    // Run total calculation
+    document.getElementById('runBtn').addEventListener('click', renderTable);
+
+    // Export to CSV
+    document.getElementById('exportBtn').addEventListener('click', () => {
+      let csv = `${translations[currentLang].thBreak},${translations[currentLang].thStart},${translations[currentLang].thEnd},${translations[currentLang].thDuration}\n`;
+      Object.keys(data).filter(k => k.startsWith('Break')).forEach(key => {
+        const b = data[key];
+        csv += `${key},${b.start || ''},${b.end || ''},${b.durationText || ''}\n`;
+      });
+      csv += `\n${translations[currentLang].totalLabel},,,${totalCell.textContent}\n`;
+      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "Breaks_Report.csv";
+      link.click();
+    });
+
+    // Clear all breaks data
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      if (!confirm('Confirm clear all data?')) return;
+      Object.keys(timerIntervals).forEach(k => clearInterval(timerIntervals[k]));
+      Object.keys(countdownIntervals).forEach(k => clearInterval(countdownIntervals[k]));
+      data = {};
+      localStorage.removeItem('breakData');
+      renderTable();
+    });
+
+    // Toggle language
+    document.getElementById('langBtn').addEventListener('click', () => {
+      currentLang = currentLang === 'en' ? 'ar' : 'en';
+      document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+      translatePage();
+    });
+
+    // Initial rendering and translation
+    translatePage();
+  </script>
+
+</body>
+</html>
